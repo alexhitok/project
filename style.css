@@ -141,10 +141,10 @@ a { color: inherit; text-decoration: none; }
   line-height: 1.2;
 }
 .brand-name {
-  font-size: var(--text-lg);
+  font-size: var(--text-2xl);
   font-weight: 800;
-  color: var(--brown-900);
-  letter-spacing: -0.01em;
+  color: var(--accent-500);
+  letter-spacing: -0.02em;
 }
 .brand-tagline {
   font-size: var(--text-xs);
