@@ -314,24 +314,33 @@ function resetDiscoverIndex() {
    FILTERS
    ========================================================= */
 
-/** Apply the current filter selections and re-render. */
+/** 
+ * Apply the current filter selections and re-render. 
+ * This function is called every time a dropdown value changes.
+ */
 function applyFilters() {
-  const district    = document.getElementById('filter-district').value;
-  const size        = document.getElementById('filter-size').value;
-  const temperament = document.getElementById('filter-temperament').value;
+  const districtValue    = document.getElementById('filter-district').value;
+  const sizeValue        = document.getElementById('filter-size').value;
+  const temperamentValue = document.getElementById('filter-temperament').value;
 
+  // Filter the allDogs array based on the selected values
   filteredDogs = allDogs.filter(dog => {
-    if (district    && dog.district    !== district)    return false;
-    if (size        && dog.size        !== size)        return false;
-    if (temperament && dog.temperament !== temperament) return false;
-    return true;
+    // If no value is selected (empty string), it counts as a match
+    const matchDistrict    = !districtValue    || dog.district === districtValue;
+    const matchSize        = !sizeValue        || dog.size === sizeValue;
+    const matchTemperament = !temperamentValue || dog.temperament === temperamentValue;
+    
+    return matchDistrict && matchSize && matchTemperament;
   });
 
+  // Always reset to the first dog in the filtered results
   currentIndex = 0;
   renderCurrentDog();
 }
 
-/** Reset all filters and show all dogs. */
+/** 
+ * Reset all filter dropdowns to "Всички" and re-apply filters. 
+ */
 function resetFilters() {
   document.getElementById('filter-district').value    = '';
   document.getElementById('filter-size').value        = '';
