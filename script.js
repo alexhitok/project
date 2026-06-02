@@ -101,19 +101,83 @@ const DEMO_CHAT_MESSAGES = {
 };
 
 /* =========================================================
+   DATA LAYER (Abstraction for future DB integration)
+   ========================================================= */
+
+/**
+ * Get all dogs. Current implementation: localStorage + Sample Dogs fallback.
+ * Can be replaced with `return await supabase.from('dogs').select('*')` later.
+ */
+function getDogs() {
+  const userDogsRaw = localStorage.getItem(LS_USER_DOGS);
+  const userDogs = userDogsRaw ? JSON.parse(userDogsRaw) : [];
+  return [...SAMPLE_DOGS, ...userDogs];
+}
+
+/**
+ * Save user dogs to persistence.
+ */
+function saveDogs(allDogsList) {
+  const userDogs = allDogsList.filter(d => d.isUserAdded);
+  localStorage.setItem(LS_USER_DOGS, JSON.stringify(userDogs));
+}
+
+/**
+ * Add a single dog.
+ */
+function addDog(dog) {
+  const currentTotal = getDogs();
+  currentTotal.push(dog);
+  saveDogs(currentTotal);
+  return dog;
+}
+
+/**
+ * Get liked dogs IDs/Objects.
+ */
+function getLikedDogs() {
+  const likedRaw = localStorage.getItem(LS_LIKED_DOGS);
+  return likedRaw ? JSON.parse(likedRaw) : [];
+}
+
+/**
+ * Save liked dogs.
+ */
+function saveLikedDogsToStore(likedList) {
+  localStorage.setItem(LS_LIKED_DOGS, JSON.stringify(likedList));
+}
+
+/**
+ * Get chat messages.
+ */
+function getMessages() {
+  const messagesRaw = localStorage.getItem(LS_MESSAGES);
+  return messagesRaw ? JSON.parse(messagesRaw) : {};
+}
+
+/**
+ * Save messages.
+ */
+function saveMessagesToStore(messagesMap) {
+  localStorage.setItem(LS_MESSAGES, JSON.stringify(messagesMap));
+}
+
+/* =========================================================
    INIT
    ========================================================= */
 
 /**
- * Initialize the app: load data from localStorage, render UI.
+ * Initialize the app: load data from storage, render UI.
  */
 function init() {
-  loadFromLocalStorage();
+  allDogs = getDogs();
+  likedDogs = getLikedDogs();
+  messages = getMessages();
+
   filteredDogs = [...allDogs];
   renderCurrentDog();
   renderMatches();
   updateStats();
-  // We initialize map only if/when discover section is active
 }
 
 /**
@@ -186,49 +250,19 @@ function scrollToDogCard() {
 }
 
 /* =========================================================
-   LOCAL STORAGE
+   EXPOSE GLOBALS FOR HTML
    ========================================================= */
-
-/** Load all dogs, liked dogs and messages from localStorage. */
-function loadFromLocalStorage() {
-  try {
-    const userDogsRaw  = localStorage.getItem(LS_USER_DOGS);
-    const likedDogsRaw = localStorage.getItem(LS_LIKED_DOGS);
-    const messagesRaw  = localStorage.getItem(LS_MESSAGES);
-
-    const userDogs   = userDogsRaw  ? JSON.parse(userDogsRaw)  : [];
-    const savedLiked = likedDogsRaw ? JSON.parse(likedDogsRaw) : [];
-    const savedMsgs  = messagesRaw  ? JSON.parse(messagesRaw)  : {};
-
-    allDogs   = [...SAMPLE_DOGS, ...userDogs];
-    likedDogs = savedLiked;
-    messages  = savedMsgs;
-  } catch (e) {
-    allDogs   = [...SAMPLE_DOGS];
-    likedDogs = [];
-    messages  = {};
-  }
-}
-
-/** Save chat messages to localStorage. */
-function saveMessages() {
-  localStorage.setItem(LS_MESSAGES, JSON.stringify(messages));
-}
-
-/** Save user-added dogs to localStorage. */
-function saveUserDogs() {
-  const userDogs = allDogs.filter(d => d.isUserAdded);
-  localStorage.setItem(LS_USER_DOGS, JSON.stringify(userDogs));
-}
-
-/** Save liked dogs to localStorage. */
-function saveLikedDogs() {
-  localStorage.setItem(LS_LIKED_DOGS, JSON.stringify(likedDogs));
-}
-
-/* =========================================================
-   NAVIGATION
-   ========================================================= */
+window.navigate = navigate;
+window.applyFilters = applyFilters;
+window.resetFilters = resetFilters;
+window.resetDiscoverIndex = resetDiscoverIndex;
+window.skipDog = skipDog;
+window.inviteDog = inviteDog;
+window.likeDog = likeDog;
+window.handleAddDog = handleAddDog;
+window.backToConversations = backToConversations;
+window.handleSendMessage = handleSendMessage;
+window.openChat = openChat;
 
 /**
  * Navigate to a named section.
@@ -395,7 +429,7 @@ function likeDog() {
   // Avoid duplicates
   if (!likedDogs.find(d => d.id === dog.id)) {
     likedDogs.push(dog);
-    saveLikedDogs();
+    saveLikedDogsToStore(likedDogs);
     updateBadge();
     updateStats();
   }
@@ -497,7 +531,7 @@ function handleAddDog(event) {
   filteredDogs = [...allDogs];  // Reset filter after adding
   currentIndex = allDogs.length - 1; // Point to newly added dog in discover
 
-  saveUserDogs();
+  saveDogs(allDogs);
   updateStats();
 
   // Show success message and reset form
@@ -751,7 +785,7 @@ function handleSendMessage(event) {
   });
 
   // Persist: saving to localStorage
-  saveMessages();
+  saveMessagesToStore(messages);
 
   // Update UI
   input.value = '';
