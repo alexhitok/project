@@ -41,7 +41,7 @@ const SAMPLE_DOGS = [
     temperament: 'социално',
     goal: 'игра',
     description: 'Луна е малко и изключително социално кученце. Търси приятели за игра в Борисовата градина.',
-    photo: 'https://images.pexels.com/photos/8721342/pexels-photo-8721342.jpeg?auto=compress&cs=tinysrgb&w=600',
+    photo: 'https://images.pexels.com/photos/2023384/pexels-photo-2023384.jpeg?auto=compress&cs=tinysrgb&w=600',
     isUserAdded: false,
   },
   {
@@ -65,7 +65,31 @@ const SAMPLE_DOGS = [
     temperament: 'страхливо',
     goal: 'социализация',
     description: 'Нора е млада и малко срамежлива кучка. Нуждае се от спокойни, постепенни запознанства с нови приятели.',
-    photo: 'https://images.pexels.com/photos/1642228/pexels-photo-1642228.jpeg?auto=compress&cs=tinysrgb&w=600',
+    photo: 'https://images.pexels.com/photos/551628/pexels-photo-551628.jpeg?auto=compress&cs=tinysrgb&w=600',
+    isUserAdded: false,
+  },
+  {
+    id: 'dog-6',
+    name: 'Лъки',
+    age: 2,
+    district: 'Гео Милев',
+    size: 'средно',
+    temperament: 'умно',
+    goal: 'игра',
+    description: 'Лъки е изключително умна и енергична Бордър коли кучка. Обожава да учи нови трикове и да тича след фризби.',
+    photo: 'https://images.pexels.com/photos/2607544/pexels-photo-2607544.jpeg?auto=compress&cs=tinysrgb&w=600',
+    isUserAdded: false,
+  },
+  {
+    id: 'dog-7',
+    name: 'Лъки',
+    age: 3,
+    district: 'Център',
+    size: 'средно',
+    temperament: 'игриво',
+    goal: 'разходка',
+    description: 'Още една Лъки! Тя е жизнерадостна и много социална, търси компания за игри в центъра на София.',
+    photo: './viber_image.jpg',
     isUserAdded: false,
   },
 ];
@@ -98,6 +122,8 @@ const DEMO_CHAT_MESSAGES = {
   'dog-3': [{ text: 'Луна много обича малки кучета и игра.', sentByMe: false }],
   'dog-4': [{ text: 'Макс търси активна разходка следобед.', sentByMe: false }],
   'dog-5': [{ text: 'Нора е малко страхлива, но иска спокойна социализация.', sentByMe: false }],
+  'dog-6': [{ text: 'Здрасти! Лъки е готова за нови трикове и игри!', sentByMe: false }],
+  'dog-7': [{ text: 'Привет! Търсим си компания за разходка около НДК.', sentByMe: false }],
 };
 
 /* =========================================================
