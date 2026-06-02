@@ -77,66 +77,13 @@ let allDogs = [];        // All dogs (sample + user-added)
 let filteredDogs = [];   // Dogs after applying filters
 let currentIndex = 0;   // Index in filteredDogs currently shown
 let likedDogs = [];      // Dogs the user liked
-
-// Auth state
-let users = [];
-let currentUser = null;
-
-/* =========================================================
-   GEODATA & MAP CONFIG
-   ========================================================= */
-let map;
-let dogMarkers = L.layerGroup();
-let parkMarkers = L.layerGroup();
-
-const districtCoordinates = {
-  'Лозенец': [42.6759, 23.3239],
-  'Младост': [42.6454, 23.3747],
-  'Люлин': [42.7167, 23.2543],
-  'Център': [42.6977, 23.3219],
-  'Овча купел': [42.6821, 23.2528],
-  'Надежда': [42.7295, 23.3025],
-  'Студентски град': [42.6500, 23.3445],
-  'Дружба': [42.6606, 23.3973],
-  'Красно село': [42.6828, 23.2882],
-  'Изток': [42.6695, 23.3525]
-};
-
-const parks = [
-  { name: 'Южен парк', coords: [42.6727, 23.3089] },
-  { name: 'Борисова градина', coords: [42.6863, 23.3430] },
-  { name: 'Западен парк', coords: [42.7048, 23.2716] },
-  { name: 'Парк Заимов', coords: [42.6993, 23.3377] },
-  { name: 'Северен парк', coords: [42.7338, 23.3085] }
-];
+let map;                 // Leaflet map instance
 
 /* =========================================================
    LOCAL STORAGE KEYS
    ========================================================= */
-const LS_ALL_DOGS         = 'dmd_all_dogs';
-const LS_LIKED_DOGS       = 'dmd_liked_dogs';
-const LS_USERS            = 'dogMeetDogUsers';
-const LS_CURRENT_USER     = 'dogMeetDogCurrentUser';
-
-/* =========================================================
-   DEMO USERS
-   ========================================================= */
-const DEMO_USERS = [
-  {
-    email: 'user@dogmeetdog.bg',
-    password: 'user123',
-    role: 'user',
-    name: 'Демо потребител',
-    district: 'Лозенец'
-  },
-  {
-    email: 'admin@dogmeetdog.bg',
-    password: 'admin123',
-    role: 'admin',
-    name: 'Администратор',
-    district: 'Център'
-  }
-];
+const LS_USER_DOGS   = 'dmd_user_dogs';
+const LS_LIKED_DOGS  = 'dmd_liked_dogs';
 
 /* =========================================================
    INIT
@@ -147,72 +94,46 @@ const DEMO_USERS = [
  */
 function init() {
   loadFromLocalStorage();
-  
-  // Check if session exists
-  if (currentUser) {
-    showMainApp();
-  } else {
-    showAuth();
-  }
-}
-
-/**
- * Show the main application sections and hide auth.
- */
-function showMainApp() {
-  document.getElementById('section-auth').classList.add('hidden');
-  document.getElementById('app-main-content').classList.remove('hidden');
-  document.getElementById('app-bottom-nav').classList.remove('hidden');
-  document.getElementById('user-profile-header').classList.remove('hidden');
-  
-  const displayEmail = currentUser.name || currentUser.email;
-  document.getElementById('current-user-display').textContent = displayEmail;
-
-  // Show/Hide admin nav based on role
-  const adminBtn = document.getElementById('nav-admin');
-  if (currentUser.role === 'admin') {
-    adminBtn.classList.remove('hidden');
-  } else {
-    adminBtn.classList.add('hidden');
-  }
-
-  // Initial UI render
-  // Filter dogs to exclude hidden/deleted (only for non-admin view if you want, 
-  // but let's just make Discover show approved/userAdded dogs)
-  refreshDogList();
-  
+  filteredDogs = [...allDogs];
   renderCurrentDog();
   renderMatches();
   updateStats();
-  updateBadge();
-  
-  // Initialize the Sofia map
-  initMap();
-  
-  navigate('home');
+  // We initialize map only if/when discover section is active
 }
 
 /**
- * Refresh the dogs list based on active/hidden status.
+ * Initialize Leaflet map centered on Sofia.
  */
-function refreshDogList() {
-  // Only show approved dogs in the Discover section
-  filteredDogs = allDogs.filter(d => d.status === 'approved');
-  currentIndex = 0;
-}
+function initMap() {
+  if (map) return; // Already initialized
 
-/**
- * Show the login/signup section and hide main app.
- */
-function showAuth() {
-  document.getElementById('section-auth').classList.remove('hidden');
-  document.getElementById('app-main-content').classList.add('hidden');
-  document.getElementById('app-bottom-nav').classList.add('hidden');
-  document.getElementById('user-profile-header').classList.add('hidden');
-  
-  // Ensure we are on auth section
-  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-  document.getElementById('section-auth').classList.add('active');
+  map = L.map('sofiaMap').setView([42.6977, 23.3219], 12);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
+
+  // Sample locations/dogs markers
+  const locations = [
+    { name: 'Южен парк', coords: [42.6685, 23.3094], type: 'park' },
+    { name: 'Борисова градина', coords: [42.6841, 23.3364], type: 'park' },
+    { name: 'Бела', coords: [42.6750, 23.3250], type: 'dog' },
+    { name: 'Роки', coords: [42.6450, 23.3750], type: 'dog' },
+    { name: 'Луна', coords: [42.6950, 23.3250], type: 'dog' }
+  ];
+
+  locations.forEach(loc => {
+    const icon = L.divIcon({
+      className: 'custom-div-icon',
+      html: `<div style="background-color: ${loc.type === 'park' ? '#5aad7a' : '#d97a42'}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white;"></div>`,
+      iconSize: [12, 12],
+      iconAnchor: [6, 6]
+    });
+
+    L.marker(loc.coords, { icon: icon })
+      .addTo(map)
+      .bindPopup(`<div class="map-popup"><strong>${loc.name}</strong><span>${loc.type === 'park' ? 'Популярно място за разходка' : 'Куче наблизо'}</span></div>`);
+  });
 }
 
 /* =========================================================
@@ -233,32 +154,20 @@ function loadFromLocalStorage() {
     }
 
     const likedDogsRaw = localStorage.getItem(LS_LIKED_DOGS);
-    likedDogs = likedDogsRaw ? JSON.parse(likedDogsRaw) : [];
-
-    // 2. Load Users
-    const usersRaw = localStorage.getItem(LS_USERS);
-    if (!usersRaw) {
-      users = [...DEMO_USERS];
-      localStorage.setItem(LS_USERS, JSON.stringify(users));
-    } else {
-      users = JSON.parse(usersRaw);
-    }
-
-    // 3. Load Session
-    const sessionRaw = localStorage.getItem(LS_CURRENT_USER);
-    currentUser = sessionRaw ? JSON.parse(sessionRaw) : null;
-
+    const userDogs  = userDogsRaw  ? JSON.parse(userDogsRaw)  : [];
+    const savedLiked = likedDogsRaw ? JSON.parse(likedDogsRaw) : [];
+    allDogs   = [...SAMPLE_DOGS, ...userDogs];
+    likedDogs = savedLiked;
   } catch (e) {
-    console.error('Error loading from localStorage', e);
-    allDogs = SAMPLE_DOGS.map(d => ({ ...d, status: 'approved' }));
+    allDogs   = [...SAMPLE_DOGS];
     likedDogs = [];
-    users = [...DEMO_USERS];
   }
 }
 
-/** Save all dogs to localStorage. */
+/** Save user-added dogs to localStorage. */
 function saveUserDogs() {
-  localStorage.setItem(LS_ALL_DOGS, JSON.stringify(allDogs));
+  const userDogs = allDogs.filter(d => d.isUserAdded);
+  localStorage.setItem(LS_USER_DOGS, JSON.stringify(userDogs));
 }
 
 /** Save liked dogs to localStorage. */
@@ -272,188 +181,34 @@ function saveLikedDogs() {
 
 /**
  * Navigate to a named section.
- * @param {string} sectionName - 'home' | 'discover' | 'add' | 'matches' | 'admin'
+ * @param {string} sectionName - 'home' | 'discover' | 'add' | 'matches'
  */
 function navigate(sectionName) {
-  // Security check for admin
-  if (sectionName === 'admin') {
-    if (!currentUser || currentUser.role !== 'admin') {
-      alert('Нямаш достъп до админ панела.');
-      return;
-    }
-  }
-
   // Hide all sections
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
 
-    if (section) section.classList.add('active');
-
-    // Leaflet map needs a resize trigger if it was hidden when initialized
-    if (sectionName === 'discover' && map) {
-      setTimeout(() => {
-        map.invalidateSize();
-      }, 100);
-    }
+  // Show target section
+  const section = document.getElementById('section-' + sectionName);
+  if (section) section.classList.add('active');
 
   // Activate nav item
   const navBtn = document.getElementById('nav-' + sectionName);
   if (navBtn) navBtn.classList.add('active');
 
+  // Trigger map init if discover
+  if (sectionName === 'discover') {
+    setTimeout(() => {
+      initMap();
+      if (map) map.invalidateSize();
+    }, 100);
+  }
+
   // Scroll to top
-  const mainContent = document.getElementById('app-main-content');
-  if (mainContent) mainContent.scrollTop = 0;
+  document.querySelector('.main-content').scrollTop = 0;
 
-  // Re-render specific logic
+  // Re-render if navigating to matches
   if (sectionName === 'matches') renderMatches();
-  if (sectionName === 'admin') renderAdminDashboard();
-}
-
-/* =========================================================
-   AUTH LOGIC
-   ========================================================= */
-
-/** 
- * HOW LOGIN WORKS:
- * We check if a user with the given email and password exists in the 'users' array (loaded from localStorage).
- * If found, we store the user object in 'currentUser' and save it to localStorage under 'dogMeetDogCurrentUser'
- * to maintain the session after page refresh.
- */
-function handleLogin(event) {
-  // ... existing code ...
-
-  event.preventDefault();
-  const email = document.getElementById('login-email').value.trim();
-  const pass = document.getElementById('login-password').value;
-  const errorMsg = document.getElementById('auth-error');
-
-  // Find user
-  const user = users.find(u => u.email === email && u.password === pass);
-
-  if (user) {
-    currentUser = user;
-    localStorage.setItem(LS_CURRENT_USER, JSON.stringify(currentUser));
-    showMainApp();
-    errorMsg.classList.add('hidden');
-  } else {
-    errorMsg.textContent = 'Грешен имейл или парола.';
-    errorMsg.classList.remove('hidden');
-  }
-}
-
-/** Handles user signup. */
-function handleSignup(event) {
-  event.preventDefault();
-  const name = document.getElementById('signup-name').value.trim();
-  const email = document.getElementById('signup-email').value.trim();
-  const pass = document.getElementById('signup-password').value;
-  const confirm = document.getElementById('signup-confirm').value;
-  const district = document.getElementById('signup-district').value;
-  const safety = document.getElementById('signup-safety').checked;
-  const errorMsg = document.getElementById('auth-error');
-
-  if (pass !== confirm) {
-    errorMsg.textContent = 'Паролите не съвпадат.';
-    errorMsg.classList.remove('hidden');
-    return;
-  }
-
-  // Check if exists
-  const exists = users.find(u => u.email === email);
-  if (exists) {
-    errorMsg.textContent = 'Потребител с този имейл вече съществува.';
-    errorMsg.classList.remove('hidden');
-    return;
-  }
-
-  const newUser = {
-    name,
-    email,
-    password: pass,
-    district,
-    role: 'user'
-  };
-
-  users.push(newUser);
-  localStorage.setItem(LS_USERS, JSON.stringify(users));
-  
-  // Auto-login
-  currentUser = newUser;
-  localStorage.setItem(LS_CURRENT_USER, JSON.stringify(currentUser));
-  
-  showMainApp();
-  alert('Профилът е създаден успешно! Добре дошли.');
-}
-
-/** Logs out the current user. */
-function handleLogout() {
-  currentUser = null;
-  localStorage.removeItem(LS_CURRENT_USER);
-  showAuth();
-}
-
-/* =========================================================
-   ADMIN LOGIC
-   ========================================================= */
-
-/** Renders the admin dashboard with stats and dog list. */
-function renderAdminDashboard() {
-  // Update stats
-  document.getElementById('admin-total-users').textContent = users.length;
-  document.getElementById('admin-total-dogs').textContent = allDogs.length;
-  document.getElementById('admin-total-likes').textContent = likedDogs.length;
-  document.getElementById('admin-pending-dogs').textContent = allDogs.filter(d => d.status === 'pending').length;
-
-  const listContainer = document.getElementById('admin-dogs-list');
-  listContainer.innerHTML = allDogs.map(dog => buildAdminDogRow(dog)).join('');
-}
-
-/** Builds a single row for the admin dog list. */
-function buildAdminDogRow(dog) {
-  const statusClass = `tag-${dog.status || 'approved'}`;
-  const statusLabel = dog.status === 'pending' ? 'Чакащо' : (dog.status === 'hidden' ? 'Скрито' : 'Одобрено');
-  
-  return `
-    <div class="admin-dog-row">
-      <img src="${dog.photo || 'https://via.placeholder.com/50'}" class="admin-dog-thumb" alt="" />
-      <div class="admin-dog-info">
-        <div class="admin-dog-name">${escapeHtml(dog.name)}</div>
-        <div class="admin-dog-meta">${escapeHtml(dog.district)} · ${dog.age}г.</div>
-        <span class="admin-tag ${statusClass}">${statusLabel}</span>
-      </div>
-      <div class="admin-dog-actions">
-        ${dog.status !== 'approved' ? `<button class="admin-btn btn-approve" onclick="adminAction('${dog.id}', 'approve')">Одобри</button>` : ''}
-        ${dog.status !== 'hidden' ? `<button class="admin-btn btn-hide" onclick="adminAction('${dog.id}', 'hide')">Скрий</button>` : ''}
-        <button class="admin-btn btn-delete" onclick="adminAction('${dog.id}', 'delete')">Изтрий</button>
-      </div>
-    </div>
-  `;
-}
-
-/** Handles admin actions on dogs. */
-function adminAction(dogId, action) {
-  const dogIndex = allDogs.findIndex(d => d.id === dogId);
-  if (dogIndex === -1) return;
-
-  if (action === 'delete') {
-    if (confirm('Сигурни ли сте, че искате да изтриете този профил?')) {
-      allDogs.splice(dogIndex, 1);
-      // Also remove from liked
-      likedDogs = likedDogs.filter(d => d.id !== dogId);
-      saveLikedDogs();
-    }
-  } else if (action === 'approve') {
-    allDogs[dogIndex].status = 'approved';
-  } else if (action === 'hide') {
-    allDogs[dogIndex].status = 'hidden';
-  }
-
-  saveUserDogs(); // Re-use the save function which saves current allDogs minus samples if we were strict, 
-                  // but here let's actually make sure we save carefully.
-  
-  renderAdminDashboard();
-  updateStats();
-  refreshDogList();
 }
 
 /* =========================================================
@@ -622,10 +377,8 @@ function applyFilters() {
   const sizeValue        = document.getElementById('filter-size').value;
   const temperamentValue = document.getElementById('filter-temperament').value;
 
-  // Filter the allDogs array (only approved ones) based on the selected values
+  // Filter the allDogs array based on the selected values
   filteredDogs = allDogs.filter(dog => {
-    if (dog.status !== 'approved') return false;
-    
     // If no value is selected (empty string), it counts as a match
     const matchDistrict    = !districtValue    || dog.district === districtValue;
     const matchSize        = !sizeValue        || dog.size === sizeValue;
@@ -637,9 +390,6 @@ function applyFilters() {
   // Always reset to the first dog in the filtered results
   currentIndex = 0;
   renderCurrentDog();
-
-  // Update map markers to show only dogs matching the new filter
-  renderDogMarkers();
 }
 
 /** 
@@ -681,23 +431,19 @@ function handleAddDog(event) {
     description,
     photo: '',      // User-added dogs have no photo for now
     isUserAdded: true,
-    status: 'pending' // New dogs start as pending for admin approval
   };
 
-  // Add to allDogs
+  // Add to allDogs and update filteredDogs
   allDogs.push(newDog);
-  
+  filteredDogs = [...allDogs];  // Reset filter after adding
+  currentIndex = allDogs.length - 1; // Point to newly added dog in discover
+
   saveUserDogs();
-  applyFilters(); // Apply filter to see the new dog and update map
   updateStats();
 
   // Show success message and reset form
   document.getElementById('add-dog-form').reset();
   document.getElementById('char-count').textContent = '0 / 200';
-  
-  // Custom success banner for adding a dog
-  const banner = document.getElementById('add-success');
-  banner.querySelector('p').textContent = 'Твоят профил ще се появи в "Открий" след одобрение от админ.';
   showSuccessBanner();
 }
 
