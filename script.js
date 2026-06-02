@@ -140,10 +140,19 @@ function initMap() {
    LOCAL STORAGE
    ========================================================= */
 
-/** Load user-added dogs and liked dogs from localStorage. */
+/** Load all dogs, liked dogs and users from localStorage. */
 function loadFromLocalStorage() {
   try {
-    const userDogsRaw  = localStorage.getItem(LS_USER_DOGS);
+    // 1. Load Dogs
+    const allDogsRaw = localStorage.getItem(LS_ALL_DOGS);
+    if (allDogsRaw) {
+      allDogs = JSON.parse(allDogsRaw);
+    } else {
+      // First time: use sample dogs and mark them approved
+      allDogs = SAMPLE_DOGS.map(d => ({ ...d, status: 'approved' }));
+      localStorage.setItem(LS_ALL_DOGS, JSON.stringify(allDogs));
+    }
+
     const likedDogsRaw = localStorage.getItem(LS_LIKED_DOGS);
     const userDogs  = userDogsRaw  ? JSON.parse(userDogsRaw)  : [];
     const savedLiked = likedDogsRaw ? JSON.parse(likedDogsRaw) : [];
@@ -580,4 +589,4 @@ function escapeHtml(str) {
 init();
 
 // Restore badge count on load
-updateBadge();
+updateBadge(); 
