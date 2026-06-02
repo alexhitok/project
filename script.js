@@ -78,6 +78,7 @@ let filteredDogs = [];   // Dogs after applying filters
 let currentIndex = 0;   // Index in filteredDogs currently shown
 let likedDogs = [];      // Dogs the user liked
 let map;                 // Leaflet map instance
+let markerLayer;         // Layer group for dog markers
 let messages = {};       // Chat history per dog ID
 let activeChatId = null; // Currently selected dog ID for chat
 
@@ -122,32 +123,66 @@ function initMap() {
   if (map) return; // Already initialized
 
   map = L.map('sofiaMap').setView([42.6977, 23.3219], 12);
+  markerLayer = L.featureGroup().addTo(map);
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap contributors'
   }).addTo(map);
 
-  // Sample locations/dogs markers
-  const locations = [
-    { name: 'Южен парк', coords: [42.6685, 23.3094], type: 'park' },
-    { name: 'Борисова градина', coords: [42.6841, 23.3364], type: 'park' },
-    { name: 'Бела', coords: [42.6750, 23.3250], type: 'dog' },
-    { name: 'Роки', coords: [42.6450, 23.3750], type: 'dog' },
-    { name: 'Луна', coords: [42.6950, 23.3250], type: 'dog' }
-  ];
+  updateMapMarkers();
+}
 
-  locations.forEach(loc => {
+/**
+ * Update map markers to show only filteredDogs.
+ * Called after filters change or when map is first initialized.
+ */
+function updateMapMarkers() {
+  if (!map || !markerLayer) return;
+
+  // Clear previous dog markers
+  markerLayer.clearLayers();
+
+  // Sample coordinates for dogs (Sofia districts mapping)
+  const dogCoords = {
+    'Бела': [42.6750, 23.3250],
+    'Роки': [42.6450, 23.3750],
+    'Луна': [42.6950, 23.3250],
+    'Макс': [42.6550, 23.3100],
+    'Нора': [42.7050, 23.3500]
+  };
+
+  // Add markers for each filtered dog
+  filteredDogs.forEach((dog, index) => {
+    const coords = dogCoords[dog.name] || [42.6977, 23.3219]; // Default to city center if no match
+
     const icon = L.divIcon({
       className: 'custom-div-icon',
-      html: `<div style="background-color: ${loc.type === 'park' ? '#5aad7a' : '#d97a42'}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white;"></div>`,
+      html: `<div style="background-color: #d97a42; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white;"></div>`,
       iconSize: [12, 12],
       iconAnchor: [6, 6]
     });
 
-    L.marker(loc.coords, { icon: icon })
-      .addTo(map)
-      .bindPopup(`<div class="map-popup"><strong>${loc.name}</strong><span>${loc.type === 'park' ? 'Популярно място за разходка' : 'Куче наблизо'}</span></div>`);
+    const marker = L.marker(coords, { icon: icon })
+      .addTo(markerLayer)
+      .bindPopup(`<div class="map-popup"><strong>${dog.name}</strong><span>${dog.district}</span></div>`);
+
+    // On marker click, show this dog and scroll to card
+    marker.on('click', function() {
+      currentIndex = index;
+      renderCurrentDog();
+      scrollToDogCard();
+    });
   });
+}
+
+/**
+ * Scroll to the dog card smoothly.
+ */
+function scrollToDogCard() {
+  const card = document.getElementById('dog-card-container');
+  if (card) {
+    card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
 }
 
 /* =========================================================
@@ -384,6 +419,7 @@ function resetDiscoverIndex() {
   currentIndex = 0;
   filteredDogs = [...allDogs];
   renderCurrentDog();
+  updateMapMarkers();
 }
 
 /* =========================================================
@@ -405,13 +441,14 @@ function applyFilters() {
     const matchDistrict    = !districtValue    || dog.district === districtValue;
     const matchSize        = !sizeValue        || dog.size === sizeValue;
     const matchTemperament = !temperamentValue || dog.temperament === temperamentValue;
-    
+
     return matchDistrict && matchSize && matchTemperament;
   });
 
   // Always reset to the first dog in the filtered results
   currentIndex = 0;
   renderCurrentDog();
+  updateMapMarkers();
 }
 
 /** 
