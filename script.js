@@ -78,12 +78,26 @@ let filteredDogs = [];   // Dogs after applying filters
 let currentIndex = 0;   // Index in filteredDogs currently shown
 let likedDogs = [];      // Dogs the user liked
 let map;                 // Leaflet map instance
+let messages = {};       // Chat history per dog ID
+let activeChatId = null; // Currently selected dog ID for chat
 
 /* =========================================================
    LOCAL STORAGE KEYS
    ========================================================= */
 const LS_USER_DOGS   = 'dmd_user_dogs';
 const LS_LIKED_DOGS  = 'dmd_liked_dogs';
+const LS_MESSAGES    = 'dogMeetDogMessages';
+
+/* =========================================================
+   DEMO DATA FOR CHAT
+   ========================================================= */
+const DEMO_CHAT_MESSAGES = {
+  'dog-1': [{ text: 'Здравей! Искате ли разходка в Южен парк?', sentByMe: false }],
+  'dog-2': [{ text: 'Роки е свободен за спокойна разходка този уикенд.', sentByMe: false }],
+  'dog-3': [{ text: 'Луна много обича малки кучета и игра.', sentByMe: false }],
+  'dog-4': [{ text: 'Макс търси активна разходка следобед.', sentByMe: false }],
+  'dog-5': [{ text: 'Нора е малко страхлива, но иска спокойна социализация.', sentByMe: false }],
+};
 
 /* =========================================================
    INIT
@@ -140,28 +154,30 @@ function initMap() {
    LOCAL STORAGE
    ========================================================= */
 
-/** Load all dogs, liked dogs and users from localStorage. */
+/** Load all dogs, liked dogs and messages from localStorage. */
 function loadFromLocalStorage() {
   try {
-    // 1. Load Dogs
-    const allDogsRaw = localStorage.getItem(LS_ALL_DOGS);
-    if (allDogsRaw) {
-      allDogs = JSON.parse(allDogsRaw);
-    } else {
-      // First time: use sample dogs and mark them approved
-      allDogs = SAMPLE_DOGS.map(d => ({ ...d, status: 'approved' }));
-      localStorage.setItem(LS_ALL_DOGS, JSON.stringify(allDogs));
-    }
-
+    const userDogsRaw  = localStorage.getItem(LS_USER_DOGS);
     const likedDogsRaw = localStorage.getItem(LS_LIKED_DOGS);
-    const userDogs  = userDogsRaw  ? JSON.parse(userDogsRaw)  : [];
+    const messagesRaw  = localStorage.getItem(LS_MESSAGES);
+
+    const userDogs   = userDogsRaw  ? JSON.parse(userDogsRaw)  : [];
     const savedLiked = likedDogsRaw ? JSON.parse(likedDogsRaw) : [];
+    const savedMsgs  = messagesRaw  ? JSON.parse(messagesRaw)  : {};
+
     allDogs   = [...SAMPLE_DOGS, ...userDogs];
     likedDogs = savedLiked;
+    messages  = savedMsgs;
   } catch (e) {
     allDogs   = [...SAMPLE_DOGS];
     likedDogs = [];
+    messages  = {};
   }
+}
+
+/** Save chat messages to localStorage. */
+function saveMessages() {
+  localStorage.setItem(LS_MESSAGES, JSON.stringify(messages));
 }
 
 /** Save user-added dogs to localStorage. */
@@ -189,7 +205,10 @@ function navigate(sectionName) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
 
   // Show target section
-  const section = document.getElementById('section-' + sectionName);
+  let targetId = 'section-' + sectionName;
+  if (sectionName === 'messages') targetId = 'messages-section';
+  
+  const section = document.getElementById(targetId);
   if (section) section.classList.add('active');
 
   // Activate nav item
@@ -207,8 +226,9 @@ function navigate(sectionName) {
   // Scroll to top
   document.querySelector('.main-content').scrollTop = 0;
 
-  // Re-render if navigating to matches
+  // Re-render if navigating to specific sections
   if (sectionName === 'matches') renderMatches();
+  if (sectionName === 'messages') renderMessagesList();
 }
 
 /* =========================================================
@@ -563,6 +583,153 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 });
+
+/* =========================================================
+   MESSAGES & CHAT LOGIC
+   ========================================================= */
+
+/** 
+ * Conversation creation:
+ * Conversations are created dynamically for each dog in the "likedDogs" array.
+ * We look up chat history in the "messages" state or fallback to "DEMO_CHAT_MESSAGES".
+ */
+function renderMessagesList() {
+  const listContainer = document.getElementById('conversation-list');
+  const chatWindow    = document.getElementById('active-chat-window');
+  const layout        = document.getElementById('chat-layout');
+
+  // Reset view
+  layout.classList.remove('chat-active');
+  chatWindow.classList.add('hidden');
+  activeChatId = null;
+
+  if (likedDogs.length === 0) {
+    listContainer.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">💬</div>
+        <h3>Все още нямаш разговори</h3>
+        <p>Харесай куче, за да започнеш чат.</p>
+        <button class="btn btn-primary" onclick="navigate('discover')">Открий кучета</button>
+      </div>
+    `;
+    return;
+  }
+
+  // Build the list of conversations
+  listContainer.innerHTML = likedDogs.map(dog => {
+    // Get last message from history or demo
+    const history = messages[dog.id] || DEMO_CHAT_MESSAGES[dog.id] || [];
+    const lastMsg = history.length > 0 ? history[history.length - 1].text : 'Започни чат...';
+
+    return `
+      <div class="conv-item" onclick="openChat('${dog.id}')">
+        <div class="conv-avatar">🐾</div>
+        <div class="conv-info">
+          <div class="conv-name-row">
+            <span class="conv-name">${escapeHtml(dog.name)}</span>
+            <span class="conv-district">${escapeHtml(dog.district)}</span>
+          </div>
+          <div class="conv-last-msg">${escapeHtml(lastMsg)}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+/** 
+ * Opening a conversation:
+ * Finds the dog data in likedDogs and switches the UI to chat mode.
+ * On mobile, we use "chat-active" class to swap views.
+ * @param {string} dogId 
+ */
+function openChat(dogId) {
+  const dog = likedDogs.find(d => d.id === dogId);
+  if (!dog) return;
+
+  activeChatId = dogId;
+  const layout     = document.getElementById('chat-layout');
+  const chatWindow = document.getElementById('active-chat-window');
+  
+  // UI setup
+  layout.classList.add('chat-active');
+  chatWindow.classList.remove('hidden');
+  document.getElementById('chat-with-name').textContent     = dog.name;
+  document.getElementById('chat-with-district').textContent = dog.district;
+  
+  renderChatMessages();
+  
+  // Scroll to bottom of messages
+  const msgContainer = document.getElementById('chat-messages');
+  setTimeout(() => {
+    msgContainer.scrollTop = msgContainer.scrollHeight;
+  }, 50);
+}
+
+/** Render messages for the active conversation. */
+function renderChatMessages() {
+  if (!activeChatId) return;
+
+  const container = document.getElementById('chat-messages');
+  // Combine demo messages with actual sent messages
+  const demoMsgs = DEMO_CHAT_MESSAGES[activeChatId] || [];
+  const userMsgs = messages[activeChatId] || [];
+  
+  const allMsgs = [...demoMsgs, ...userMsgs];
+
+  container.innerHTML = allMsgs.map(msg => `
+    <div class="msg-bubble ${msg.sentByMe ? 'msg-right' : 'msg-left'}">
+      ${escapeHtml(msg.text)}
+    </div>
+  `).join('');
+}
+
+/** 
+ * Sending a new message:
+ * 1. Prevents default form submit.
+ * 2. Adds the text to the current dog's entry in the "messages" object.
+ * 3. Saves "messages" to localStorage via LS_MESSAGES key.
+ * 4. Re-renders the message bubbles.
+ */
+function handleSendMessage(event) {
+  event.preventDefault();
+  if (!activeChatId) return;
+
+  const input = document.getElementById('chat-input');
+  const text  = input.value.trim();
+
+  if (!text) return;
+
+  // Initialize history for this dog if not exists
+  if (!messages[activeChatId]) {
+    messages[activeChatId] = [];
+  }
+
+  // Add new message
+  messages[activeChatId].push({
+    text: text,
+    sentByMe: true,
+    timestamp: Date.now()
+  });
+
+  // Persist: saving to localStorage
+  saveMessages();
+
+  // Update UI
+  input.value = '';
+  renderChatMessages();
+
+  // Scroll to bottom
+  const msgContainer = document.getElementById('chat-messages');
+  msgContainer.scrollTop = msgContainer.scrollHeight;
+}
+
+/** Go back to conversation list (mobile view). */
+function backToConversations() {
+  const layout = document.getElementById('chat-layout');
+  layout.classList.remove('chat-active');
+  activeChatId = null;
+  renderMessagesList();
+}
 
 /* =========================================================
    SECURITY HELPER
