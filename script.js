@@ -227,6 +227,7 @@ function navigate(sectionName) {
   document.querySelector('.main-content').scrollTop = 0;
 
   // Re-render if navigating to specific sections
+  if (sectionName === 'discover') renderCurrentDog();
   if (sectionName === 'matches') renderMatches();
   if (sectionName === 'messages') renderMessagesList();
 }
@@ -381,6 +382,7 @@ function inviteDog() {
  */
 function resetDiscoverIndex() {
   currentIndex = 0;
+  filteredDogs = [...allDogs];
   renderCurrentDog();
 }
 
@@ -753,10 +755,10 @@ function escapeHtml(str) {
 /* =========================================================
    START
    ========================================================= */
-init();
-
-// Restore badge count on load
-updateBadge();
+document.addEventListener('DOMContentLoaded', () => {
+  init();
+  updateBadge();
+});
 
 /* =========================================================
    EXPOSE GLOBALS FOR HTML
