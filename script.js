@@ -77,6 +77,7 @@ let allDogs = [];        // All dogs (sample + user-added)
 let filteredDogs = [];   // Dogs after applying filters
 let currentIndex = 0;   // Index in filteredDogs currently shown
 let likedDogs = [];      // Dogs the user liked
+let map;                 // Leaflet map instance
 
 /* =========================================================
    LOCAL STORAGE KEYS
@@ -97,6 +98,42 @@ function init() {
   renderCurrentDog();
   renderMatches();
   updateStats();
+  // We initialize map only if/when discover section is active
+}
+
+/**
+ * Initialize Leaflet map centered on Sofia.
+ */
+function initMap() {
+  if (map) return; // Already initialized
+
+  map = L.map('sofiaMap').setView([42.6977, 23.3219], 12);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
+
+  // Sample locations/dogs markers
+  const locations = [
+    { name: 'Южен парк', coords: [42.6685, 23.3094], type: 'park' },
+    { name: 'Борисова градина', coords: [42.6841, 23.3364], type: 'park' },
+    { name: 'Бела', coords: [42.6750, 23.3250], type: 'dog' },
+    { name: 'Роки', coords: [42.6450, 23.3750], type: 'dog' },
+    { name: 'Луна', coords: [42.6950, 23.3250], type: 'dog' }
+  ];
+
+  locations.forEach(loc => {
+    const icon = L.divIcon({
+      className: 'custom-div-icon',
+      html: `<div style="background-color: ${loc.type === 'park' ? '#5aad7a' : '#d97a42'}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white;"></div>`,
+      iconSize: [12, 12],
+      iconAnchor: [6, 6]
+    });
+
+    L.marker(loc.coords, { icon: icon })
+      .addTo(map)
+      .bindPopup(`<div class="map-popup"><strong>${loc.name}</strong><span>${loc.type === 'park' ? 'Популярно място за разходка' : 'Куче наблизо'}</span></div>`);
+  });
 }
 
 /* =========================================================
@@ -149,6 +186,14 @@ function navigate(sectionName) {
   // Activate nav item
   const navBtn = document.getElementById('nav-' + sectionName);
   if (navBtn) navBtn.classList.add('active');
+
+  // Trigger map init if discover
+  if (sectionName === 'discover') {
+    setTimeout(() => {
+      initMap();
+      if (map) map.invalidateSize();
+    }, 100);
+  }
 
   // Scroll to top
   document.querySelector('.main-content').scrollTop = 0;
