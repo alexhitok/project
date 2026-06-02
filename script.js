@@ -756,4 +756,20 @@ function escapeHtml(str) {
 init();
 
 // Restore badge count on load
-updateBadge(); 
+updateBadge();
+
+/* =========================================================
+   EXPOSE GLOBALS FOR HTML
+   ========================================================= */
+window.navigate = navigate;
+window.applyFilters = applyFilters;
+window.resetFilters = resetFilters;
+window.resetDiscoverIndex = resetDiscoverIndex;
+window.skipDog = skipDog;
+window.inviteDog = inviteDog;
+window.likeDog = likeDog;
+window.handleAddDog = handleAddDog;
+window.backToConversations = backToConversations;
+window.handleSendMessage = handleSendMessage;
+window.openChat = openChat;
+ 
