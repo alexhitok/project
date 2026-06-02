@@ -79,34 +79,6 @@ let currentIndex = 0;   // Index in filteredDogs currently shown
 let likedDogs = [];      // Dogs the user liked
 
 /* =========================================================
-   GEODATA & MAP CONFIG
-   ========================================================= */
-let map;
-let dogMarkers = L.layerGroup();
-let parkMarkers = L.layerGroup();
-
-const districtCoordinates = {
-  'Лозенец': [42.6759, 23.3239],
-  'Младост': [42.6454, 23.3747],
-  'Люлин': [42.7167, 23.2543],
-  'Център': [42.6977, 23.3219],
-  'Овча купел': [42.6821, 23.2528],
-  'Надежда': [42.7295, 23.3025],
-  'Студентски град': [42.6500, 23.3445],
-  'Дружба': [42.6606, 23.3973],
-  'Красно село': [42.6828, 23.2882],
-  'Изток': [42.6695, 23.3525]
-};
-
-const parks = [
-  { name: 'Южен парк', coords: [42.6727, 23.3089] },
-  { name: 'Борисова градина', coords: [42.6863, 23.3430] },
-  { name: 'Западен парк', coords: [42.7048, 23.2716] },
-  { name: 'Парк Заимов', coords: [42.6993, 23.3377] },
-  { name: 'Северен парк', coords: [42.7338, 23.3085] }
-];
-
-/* =========================================================
    LOCAL STORAGE KEYS
    ========================================================= */
 const LS_USER_DOGS   = 'dmd_user_dogs';
@@ -121,111 +93,10 @@ const LS_LIKED_DOGS  = 'dmd_liked_dogs';
  */
 function init() {
   loadFromLocalStorage();
-  // Ensure we start with all dogs shown
   filteredDogs = [...allDogs];
-  currentIndex = 0;
-  
-  // Initial UI render
   renderCurrentDog();
   renderMatches();
   updateStats();
-  
-  // Initialize the Sofia map
-  initMap();
-}
-
-/**
- * Initialize Leaflet map centered on Sofia.
- */
-function initMap() {
-  if (!document.getElementById('sofiaMap')) return;
-
-  // Center on Sofia center
-  map = L.map('sofiaMap').setView([42.6977, 23.3219], 12);
-
-  // Add OpenStreetMap tiles
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-  }).addTo(map);
-
-  // Add layers to map
-  dogMarkers.addTo(map);
-  parkMarkers.addTo(map);
-
-  // Add static park markers
-  renderParkMarkers();
-  
-  // Add initial dog markers
-  renderDogMarkers();
-}
-
-/**
- * Add markers for safe meeting places (parks).
- */
-function renderParkMarkers() {
-  parkMarkers.clearLayers();
-  parks.forEach(park => {
-    L.marker(park.coords, {
-      icon: L.divIcon({
-        className: 'park-marker',
-        html: '<div style="background-color: #5aad7a; color: white; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 14px; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.2)">🌳</div>',
-        iconSize: [24, 24],
-        iconAnchor: [12, 12]
-      })
-    })
-    .bindPopup(`<strong>${park.name}</strong><br>Подходящо място за първа кучешка среща`)
-    .addTo(parkMarkers);
-  });
-}
-
-/**
- * Add markers for currently filtered dogs.
- */
-function renderDogMarkers() {
-  dogMarkers.clearLayers();
-  
-  filteredDogs.forEach((dog, index) => {
-    // Get coords by district or fallback to center
-    const coords = districtCoordinates[dog.district] || [42.6977, 23.3219];
-    
-    // Add small random offset so multiple dogs in same district don't overlap perfectly
-    const latOffset = (Math.random() - 0.5) * 0.005;
-    const lngOffset = (Math.random() - 0.5) * 0.005;
-    const finalCoords = [coords[0] + latOffset, coords[1] + lngOffset];
-
-    const marker = L.marker(finalCoords, {
-      icon: L.divIcon({
-        className: 'dog-marker',
-        html: `<div style="background-color: #d97a42; color: white; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 18px; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3)">🐾</div>`,
-        iconSize: [32, 32],
-        iconAnchor: [16, 16]
-      })
-    });
-
-    const popupContent = `
-      <div style="font-family: inherit; font-size: 14px;">
-        <strong style="font-size: 16px; color: #6b4c2e;">${escapeHtml(dog.name)}</strong><br>
-        <span style="color: #a07850;">📍 ${escapeHtml(dog.district)}</span><br>
-        <div style="margin-top: 5px;">
-          <span style="background: #f7f0e6; padding: 2px 6px; border-radius: 4px; font-size: 11px;">${escapeHtml(dog.size)}</span>
-          <span style="background: #f7f0e6; padding: 2px 6px; border-radius: 4px; font-size: 11px;">${escapeHtml(dog.temperament)}</span>
-        </div>
-        <button onclick="jumpToDog(${index})" style="margin-top: 10px; background: #d97a42; color: white; border: none; padding: 5px 10px; border-radius: 15px; cursor: pointer; width: 100%; font-weight: 700;">Виж профила</button>
-      </div>
-    `;
-
-    marker.bindPopup(popupContent).addTo(dogMarkers);
-  });
-}
-
-/**
- * Jump to a specific dog in the card view.
- */
-function jumpToDog(index) {
-  currentIndex = index;
-  renderCurrentDog();
-  // Scroll to dog card area
-  document.getElementById('dog-card-container').scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 /* =========================================================
@@ -271,14 +142,9 @@ function navigate(sectionName) {
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
 
-    if (section) section.classList.add('active');
-
-    // Leaflet map needs a resize trigger if it was hidden when initialized
-    if (sectionName === 'discover' && map) {
-      setTimeout(() => {
-        map.invalidateSize();
-      }, 100);
-    }
+  // Show target section
+  const section = document.getElementById('section-' + sectionName);
+  if (section) section.classList.add('active');
 
   // Activate nav item
   const navBtn = document.getElementById('nav-' + sectionName);
@@ -470,9 +336,6 @@ function applyFilters() {
   // Always reset to the first dog in the filtered results
   currentIndex = 0;
   renderCurrentDog();
-
-  // Update map markers to show only dogs matching the new filter
-  renderDogMarkers();
 }
 
 /** 
@@ -518,10 +381,10 @@ function handleAddDog(event) {
 
   // Add to allDogs and update filteredDogs
   allDogs.push(newDog);
-  currentIndex = allDogs.length - 1; // Point to newly added dog
+  filteredDogs = [...allDogs];  // Reset filter after adding
+  currentIndex = allDogs.length - 1; // Point to newly added dog in discover
 
   saveUserDogs();
-  applyFilters(); // Apply filter to see the new dog and update map
   updateStats();
 
   // Show success message and reset form
