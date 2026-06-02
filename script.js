@@ -83,6 +83,34 @@ let users = [];
 let currentUser = null;
 
 /* =========================================================
+   GEODATA & MAP CONFIG
+   ========================================================= */
+let map;
+let dogMarkers = L.layerGroup();
+let parkMarkers = L.layerGroup();
+
+const districtCoordinates = {
+  'Лозенец': [42.6759, 23.3239],
+  'Младост': [42.6454, 23.3747],
+  'Люлин': [42.7167, 23.2543],
+  'Център': [42.6977, 23.3219],
+  'Овча купел': [42.6821, 23.2528],
+  'Надежда': [42.7295, 23.3025],
+  'Студентски град': [42.6500, 23.3445],
+  'Дружба': [42.6606, 23.3973],
+  'Красно село': [42.6828, 23.2882],
+  'Изток': [42.6695, 23.3525]
+};
+
+const parks = [
+  { name: 'Южен парк', coords: [42.6727, 23.3089] },
+  { name: 'Борисова градина', coords: [42.6863, 23.3430] },
+  { name: 'Западен парк', coords: [42.7048, 23.2716] },
+  { name: 'Парк Заимов', coords: [42.6993, 23.3377] },
+  { name: 'Северен парк', coords: [42.7338, 23.3085] }
+];
+
+/* =========================================================
    LOCAL STORAGE KEYS
    ========================================================= */
 const LS_ALL_DOGS         = 'dmd_all_dogs';
@@ -264,9 +292,14 @@ function navigate(sectionName) {
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
 
-  // Show target section
-  const section = document.getElementById('section-' + sectionName);
-  if (section) section.classList.add('active');
+    if (section) section.classList.add('active');
+
+    // Leaflet map needs a resize trigger if it was hidden when initialized
+    if (sectionName === 'discover' && map) {
+      setTimeout(() => {
+        map.invalidateSize();
+      }, 100);
+    }
 
   // Activate nav item
   const navBtn = document.getElementById('nav-' + sectionName);
@@ -609,6 +642,9 @@ function applyFilters() {
   // Always reset to the first dog in the filtered results
   currentIndex = 0;
   renderCurrentDog();
+
+  // Update map markers to show only dogs matching the new filter
+  renderDogMarkers();
 }
 
 /** 
@@ -657,6 +693,7 @@ function handleAddDog(event) {
   allDogs.push(newDog);
   
   saveUserDogs();
+  applyFilters(); // Apply filter to see the new dog and update map
   updateStats();
 
   // Show success message and reset form
