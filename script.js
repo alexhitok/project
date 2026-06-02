@@ -219,11 +219,6 @@ function showAuth() {
    LOCAL STORAGE
    ========================================================= */
 
-/** Load user-added dogs, liked dogs and users from localStorage. */
-function loadFromLocalStorage() {
-  try {
-    // 1. Load Dogs
-    const userDogsRaw  = localStorage.getItem(LS_USER_DOGS);
 /** Load all dogs, liked dogs and users from localStorage. */
 function loadFromLocalStorage() {
   try {
@@ -848,4 +843,4 @@ function escapeHtml(str) {
 init();
 
 // Restore badge count on load
-updateBadge();
+updateBadge(); 
