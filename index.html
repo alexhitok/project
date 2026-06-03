@@ -484,8 +484,15 @@
           <div id="profile-goal" class="profile-goal"></div>
 
           <!-- Gallery Section -->
-          <div id="profile-gallery-container" class="profile-gallery-container" style="display: none;">
-            <h3 class="profile-section-title">Галерия</h3>
+          <div id="profile-gallery-container" class="profile-gallery-container">
+            <div class="profile-section-header">
+              <h3 class="profile-section-title">Галерия</h3>
+              <label class="btn-upload-photo">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                Качи снимка
+                <input type="file" accept="image/*" style="display:none" onchange="handleProfilePhotoUpload(event)" />
+              </label>
+            </div>
             <div id="profile-gallery" class="profile-gallery"></div>
           </div>
 

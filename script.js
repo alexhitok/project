@@ -114,6 +114,7 @@ let discoverViewMode = 'cards'; // 'cards' or 'list'
 const LS_USER_DOGS   = 'dmd_user_dogs';
 const LS_LIKED_DOGS  = 'dmd_liked_dogs';
 const LS_MESSAGES    = 'dogMeetDogMessages';
+const LS_DOG_PHOTOS  = 'dmd_dog_photos';
 
 /* =========================================================
    DEMO DATA FOR CHAT
@@ -188,6 +189,27 @@ function getMessages() {
  */
 function saveMessagesToStore(messagesMap) {
   localStorage.setItem(LS_MESSAGES, JSON.stringify(messagesMap));
+}
+
+/**
+ * Get uploaded gallery photos keyed by dog ID.
+ * @returns {Object} map of dogId -> string[]
+ */
+function getDogPhotos() {
+  const raw = localStorage.getItem(LS_DOG_PHOTOS);
+  return raw ? JSON.parse(raw) : {};
+}
+
+/**
+ * Append a base64 image to a dog's gallery and persist.
+ * @param {string} dogId
+ * @param {string} base64DataUrl
+ */
+function appendDogPhoto(dogId, base64DataUrl) {
+  const store = getDogPhotos();
+  if (!store[dogId]) store[dogId] = [];
+  store[dogId].push(base64DataUrl);
+  localStorage.setItem(LS_DOG_PHOTOS, JSON.stringify(store));
 }
 
 /* =========================================================
@@ -824,13 +846,16 @@ function openProfileModal(dog) {
   // Handle gallery
   const galleryContainer = document.getElementById('profile-gallery-container');
   const galleryEl = document.getElementById('profile-gallery');
-  if (dog.gallery && dog.gallery.length > 0) {
-    galleryContainer.style.display = 'block';
-    galleryEl.innerHTML = dog.gallery
+  const storedPhotos = (getDogPhotos()[dog.id] || []);
+  const allGalleryPhotos = [...(dog.gallery || []), ...storedPhotos];
+
+  galleryContainer.style.display = 'block';
+  if (allGalleryPhotos.length > 0) {
+    galleryEl.innerHTML = allGalleryPhotos
       .map(img => `<img class="profile-gallery-image" src="${img}" alt="Dog gallery" onerror="this.style.display='none'" />`)
       .join('');
   } else {
-    galleryContainer.style.display = 'none';
+    galleryEl.innerHTML = '<p class="profile-no-photos">Все още няма качени снимки.</p>';
   }
 
   // Handle videos
@@ -906,6 +931,54 @@ function openChatFromProfile() {
 
   // Trigger opening the chat window for this dog
   setTimeout(() => openChat(profileModalDog.id), 100);
+}
+
+/**
+ * Handle photo upload from the profile modal.
+ * Reads the selected file as a base64 data URL, validates it is an image,
+ * stores it per dog ID in localStorage, and refreshes the gallery.
+ * @param {Event} event - change event from file input
+ */
+function handleProfilePhotoUpload(event) {
+  if (!profileModalDog) return;
+
+  const file = event.target.files && event.target.files[0];
+  // Reset input so the same file can be re-selected if needed
+  event.target.value = '';
+
+  if (!file) return;
+
+  if (!file.type.startsWith('image/')) {
+    showToast('Моля, избери само изображение (JPG, PNG, GIF...)');
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = function (e) {
+    const dataUrl = e.target.result;
+    if (typeof dataUrl !== 'string') return;
+
+    appendDogPhoto(profileModalDog.id, dataUrl);
+
+    // Refresh gallery in the currently open modal
+    const galleryEl = document.getElementById('profile-gallery');
+    const noPhotosEl = galleryEl && galleryEl.querySelector('.profile-no-photos');
+    if (noPhotosEl) noPhotosEl.remove();
+
+    if (galleryEl) {
+      const img = document.createElement('img');
+      img.className = 'profile-gallery-image';
+      img.src = dataUrl;
+      img.alt = 'Dog gallery';
+      galleryEl.appendChild(img);
+    }
+
+    showToast('Снимката е качена успешно!');
+  };
+  reader.onerror = function () {
+    showToast('Грешка при четене на файла. Опитай отново.');
+  };
+  reader.readAsDataURL(file);
 }
 
 /* =========================================================
@@ -1168,4 +1241,5 @@ window.dogCardShowProfile = dogCardShowProfile;
 window.likedCardShowProfile = likedCardShowProfile;
 window.setDiscoverViewMode = setDiscoverViewMode;
 window.likeDogFromList = likeDogFromList;
+window.handleProfilePhotoUpload = handleProfilePhotoUpload;
 
