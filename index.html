@@ -136,6 +136,18 @@
           <p class="section-subtitle">Разгледай кучета и подходящи места за разходка в София.</p>
         </div>
 
+        <!-- View Mode Toggle -->
+        <div class="discover-view-toggle">
+          <button class="view-toggle-btn active" id="toggle-cards" onclick="setDiscoverViewMode('cards')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            Предложения
+          </button>
+          <button class="view-toggle-btn" id="toggle-list" onclick="setDiscoverViewMode('list')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+            Списък
+          </button>
+        </div>
+
         <!-- Leaflet Map Container -->
         <div id="sofiaMap"></div>
 
@@ -186,8 +198,14 @@
 
         <!-- Dog card area -->
         <div class="card-stage">
-          <div id="dog-card-container">
+          <!-- Cards mode (default) -->
+          <div id="dog-card-container" class="discover-cards-view">
             <!-- Dog card rendered by JS -->
+          </div>
+
+          <!-- List mode -->
+          <div id="dog-list-container" class="discover-list-view hidden">
+            <!-- Dog list cards rendered by JS -->
           </div>
 
           <!-- No dogs state -->

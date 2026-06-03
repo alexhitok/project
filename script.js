@@ -106,6 +106,7 @@ let markerLayer;         // Layer group for dog markers
 let messages = {};       // Chat history per dog ID
 let activeChatId = null; // Currently selected dog ID for chat
 let profileModalDog = null; // Currently displayed dog in profile modal
+let discoverViewMode = 'cards'; // 'cards' or 'list'
 
 /* =========================================================
    LOCAL STORAGE KEYS
@@ -329,6 +330,122 @@ function navigate(sectionName) {
 }
 
 /* =========================================================
+   DISCOVER VIEW MODES
+   ========================================================= */
+
+/**
+ * Set the discover view mode ('cards' or 'list').
+ * @param {string} mode - 'cards' or 'list'
+ */
+function setDiscoverViewMode(mode) {
+  discoverViewMode = mode;
+
+  // Update toggle buttons
+  document.getElementById('toggle-cards').classList.toggle('active', mode === 'cards');
+  document.getElementById('toggle-list').classList.toggle('active', mode === 'list');
+
+  // Update container visibility
+  document.getElementById('dog-card-container').classList.toggle('hidden', mode === 'list');
+  document.getElementById('dog-list-container').classList.toggle('hidden', mode === 'cards');
+
+  // Render appropriate view
+  if (mode === 'cards') {
+    renderCurrentDog();
+  } else {
+    renderDogList();
+  }
+}
+
+/**
+ * Render all filtered dogs as a vertical list.
+ */
+function renderDogList() {
+  const container = document.getElementById('dog-list-container');
+  const noDogs = document.getElementById('no-dogs-msg');
+  const allDone = document.getElementById('all-done-msg');
+  const actionBtns = document.getElementById('action-buttons');
+
+  // No dogs match filters
+  if (filteredDogs.length === 0) {
+    container.innerHTML = '';
+    noDogs.classList.remove('hidden');
+    allDone.classList.add('hidden');
+    actionBtns.classList.add('hidden');
+    return;
+  }
+
+  noDogs.classList.add('hidden');
+  allDone.classList.add('hidden');
+  actionBtns.classList.add('hidden');
+
+  container.innerHTML = filteredDogs.map(dog => buildListDogCard(dog)).join('');
+}
+
+/**
+ * Build HTML for a list view dog card.
+ * @param {Object} dog
+ * @returns {string}
+ */
+function buildListDogCard(dog) {
+  const photoEl = dog.photo
+    ? `<img class="list-dog-card-photo" src="${dog.photo}" alt="${escapeHtml(dog.name)}"
+         onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" />`
+    : '';
+
+  const photoPlaceholder = `<div class="list-dog-card-photo-placeholder" style="${dog.photo ? 'display:none' : ''}">${pawSvg(32)}</div>`;
+
+  const shortDesc = dog.description ? escapeHtml(dog.description).substring(0, 80) + (dog.description.length > 80 ? '...' : '') : '';
+
+  return `
+    <div class="list-dog-card">
+      <div class="list-dog-card-photo-wrapper">
+        ${photoEl}
+        ${photoPlaceholder}
+      </div>
+      <div class="list-dog-card-body">
+        <div>
+          <div class="list-dog-card-header">
+            <div>
+              <div class="list-dog-card-name">${escapeHtml(dog.name)}</div>
+              <div class="list-dog-card-district">${escapeHtml(dog.district)} · ${dog.age} год.</div>
+            </div>
+          </div>
+          ${shortDesc ? `<div class="list-dog-card-desc">${shortDesc}</div>` : ''}
+        </div>
+        <div class="list-dog-card-actions">
+          <button class="btn btn-tertiary" onclick="dogCardShowProfile('${dog.id}')">Виж профил</button>
+          <button class="btn btn-secondary" onclick="likeDogFromList('${dog.id}')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Like a dog from the list view.
+ * @param {string} dogId
+ */
+function likeDogFromList(dogId) {
+  const dog = filteredDogs.find(d => d.id === dogId);
+  if (!dog) return;
+
+  const isAlreadyLiked = likedDogs.some(d => d.id === dogId);
+
+  if (!isAlreadyLiked) {
+    likedDogs.push(dog);
+    saveLikedDogs();
+    showToast('Добавено към харесани кучета!');
+    updateBadge();
+    renderMatches();
+
+    // Re-render list to update button state if needed
+    renderDogList();
+  }
+}
+
+/* =========================================================
    DOG CARD RENDERING
    ========================================================= */
 
@@ -509,7 +626,14 @@ function applyFilters() {
 
   // Always reset to the first dog in the filtered results
   currentIndex = 0;
-  renderCurrentDog();
+
+  // Render based on current view mode
+  if (discoverViewMode === 'cards') {
+    renderCurrentDog();
+  } else {
+    renderDogList();
+  }
+
   updateMapMarkers();
 }
 
@@ -1042,4 +1166,6 @@ window.likeDogFromProfile = likeDogFromProfile;
 window.openChatFromProfile = openChatFromProfile;
 window.dogCardShowProfile = dogCardShowProfile;
 window.likedCardShowProfile = likedCardShowProfile;
+window.setDiscoverViewMode = setDiscoverViewMode;
+window.likeDogFromList = likeDogFromList;
 
