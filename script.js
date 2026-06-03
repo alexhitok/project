@@ -212,6 +212,27 @@ function appendDogPhoto(dogId, base64DataUrl) {
   localStorage.setItem(LS_DOG_PHOTOS, JSON.stringify(store));
 }
 
+/**
+ * Get uploaded videos keyed by dog ID.
+ * @returns {Object} map of dogId -> string[]
+ */
+function getDogVideos() {
+  const raw = localStorage.getItem('dmd_dog_videos');
+  return raw ? JSON.parse(raw) : {};
+}
+
+/**
+ * Append a base64 video to a dog's videos and persist.
+ * @param {string} dogId
+ * @param {string} base64DataUrl
+ */
+function appendDogVideo(dogId, base64DataUrl) {
+  const store = getDogVideos();
+  if (!store[dogId]) store[dogId] = [];
+  store[dogId].push(base64DataUrl);
+  localStorage.setItem('dmd_dog_videos', JSON.stringify(store));
+}
+
 /* =========================================================
    INIT
    ========================================================= */
@@ -861,9 +882,12 @@ function openProfileModal(dog) {
   // Handle videos
   const videosContainer = document.getElementById('profile-videos-container');
   const videosEl = document.getElementById('profile-videos');
-  if (dog.videos && dog.videos.length > 0) {
-    videosEl.innerHTML = dog.videos
-      .map(url => `<div><a href="${url}" target="_blank" rel="noopener noreferrer">${escapeHtml(url)}</a></div>`)
+  const storedVideos = (getDogVideos()[dog.id] || []);
+  const allVideos = [...(dog.videos || []), ...storedVideos];
+
+  if (allVideos.length > 0) {
+    videosEl.innerHTML = allVideos
+      .map(url => `<video class="profile-video" controls><source src="${url}" /></video>`)
       .join('');
   } else {
     videosEl.innerHTML = '<div class="profile-no-videos">Все още няма качени видеа.</div>';
@@ -974,6 +998,56 @@ function handleProfilePhotoUpload(event) {
     }
 
     showToast('Снимката е качена успешно!');
+  };
+  reader.onerror = function () {
+    showToast('Грешка при четене на файла. Опитай отново.');
+  };
+  reader.readAsDataURL(file);
+}
+
+/**
+ * Handle video upload from the profile modal.
+ * Reads the selected file as a base64 data URL, validates it is a video,
+ * stores it per dog ID in localStorage, and refreshes the videos section.
+ * @param {Event} event - change event from file input
+ */
+function handleProfileVideoUpload(event) {
+  if (!profileModalDog) return;
+
+  const file = event.target.files && event.target.files[0];
+  // Reset input so the same file can be re-selected if needed
+  event.target.value = '';
+
+  if (!file) return;
+
+  if (!file.type.startsWith('video/')) {
+    showToast('Моля, избери само видео (MP4, WebM, Ogg...)');
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = function (e) {
+    const dataUrl = e.target.result;
+    if (typeof dataUrl !== 'string') return;
+
+    appendDogVideo(profileModalDog.id, dataUrl);
+
+    // Refresh videos in the currently open modal
+    const videosEl = document.getElementById('profile-videos');
+    const noVideosEl = videosEl && videosEl.querySelector('.profile-no-videos');
+    if (noVideosEl) noVideosEl.remove();
+
+    if (videosEl) {
+      const video = document.createElement('video');
+      video.className = 'profile-video';
+      video.controls = true;
+      const source = document.createElement('source');
+      source.src = dataUrl;
+      video.appendChild(source);
+      videosEl.appendChild(video);
+    }
+
+    showToast('Видеото е качено успешно!');
   };
   reader.onerror = function () {
     showToast('Грешка при четене на файла. Опитай отново.');
@@ -1242,4 +1316,5 @@ window.likedCardShowProfile = likedCardShowProfile;
 window.setDiscoverViewMode = setDiscoverViewMode;
 window.likeDogFromList = likeDogFromList;
 window.handleProfilePhotoUpload = handleProfilePhotoUpload;
+window.handleProfileVideoUpload = handleProfileVideoUpload;
 
