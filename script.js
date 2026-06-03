@@ -105,6 +105,7 @@ let map;                 // Leaflet map instance
 let markerLayer;         // Layer group for dog markers
 let messages = {};       // Chat history per dog ID
 let activeChatId = null; // Currently selected dog ID for chat
+let profileModalDog = null; // Currently displayed dog in profile modal
 
 /* =========================================================
    LOCAL STORAGE KEYS
@@ -409,6 +410,7 @@ function buildDogCard(dog, pos, total) {
         ${dog.description
           ? `<p class="dog-card-desc">${escapeHtml(dog.description)}</p>`
           : ''}
+        <button class="btn btn-tertiary btn-small" onclick="dogCardShowProfile('${dog.id}')">Виж профил</button>
       </div>
     </div>
   `;
@@ -608,7 +610,7 @@ function buildMatchCard(dog) {
     : `<div class="match-card-photo-placeholder">${pawSvg(32)}</div>`;
 
   return `
-    <div class="match-card">
+    <div class="match-card" onclick="likedCardShowProfile('${dog.id}')">
       ${photoEl}
       <div class="match-card-body">
         <div class="match-card-name">${escapeHtml(dog.name)}</div>
@@ -617,6 +619,169 @@ function buildMatchCard(dog) {
       </div>
     </div>
   `;
+}
+
+/* =========================================================
+   DOG PROFILE MODAL
+   ========================================================= */
+
+/**
+ * Helper to open profile modal from Discover card by dog ID.
+ * @param {string} dogId
+ */
+function dogCardShowProfile(dogId) {
+  const dog = allDogs.find(d => d.id === dogId);
+  if (dog) openProfileModal(dog);
+}
+
+/**
+ * Helper to open profile modal from Liked Dogs card by dog ID.
+ * @param {string} dogId
+ */
+function likedCardShowProfile(dogId) {
+  const dog = likedDogs.find(d => d.id === dogId);
+  if (dog) openProfileModal(dog);
+}
+
+/**
+ * Open the dog profile modal and populate it with dog data.
+ * @param {Object} dog - Dog object to display
+ */
+function openProfileModal(dog) {
+  profileModalDog = dog;
+  const modal = document.getElementById('profile-modal');
+
+  // Set basic info
+  document.getElementById('profile-name').textContent = escapeHtml(dog.name);
+
+  // Set photo
+  const photoEl = document.getElementById('profile-photo');
+  const placeholderEl = document.getElementById('profile-photo-placeholder');
+  if (dog.photo) {
+    photoEl.src = dog.photo;
+    photoEl.style.display = 'block';
+    placeholderEl.style.display = 'none';
+  } else {
+    photoEl.style.display = 'none';
+    placeholderEl.innerHTML = pawSvg(80);
+    placeholderEl.style.display = 'flex';
+  }
+
+  // Set meta information
+  const ageLabel = dog.age === 1 ? '1 година' : `${dog.age} год.`;
+  document.getElementById('profile-age').textContent = ageLabel;
+  document.getElementById('profile-district').textContent = escapeHtml(dog.district);
+  document.getElementById('profile-size').textContent = escapeHtml(dog.size);
+
+  // Set temperament/personality
+  const tempEl = document.getElementById('profile-temperament');
+  if (dog.temperament) {
+    tempEl.innerHTML = `<span class="profile-tag">${escapeHtml(dog.temperament)}</span>`;
+  } else {
+    tempEl.innerHTML = '';
+  }
+
+  // Set description
+  const descEl = document.getElementById('profile-description');
+  if (dog.description) {
+    descEl.textContent = escapeHtml(dog.description);
+  } else {
+    descEl.textContent = '';
+  }
+
+  // Set goal
+  const goalEl = document.getElementById('profile-goal');
+  if (dog.goal) {
+    goalEl.innerHTML = `<strong>Цел:</strong> ${escapeHtml(dog.goal)}`;
+  } else {
+    goalEl.innerHTML = '';
+  }
+
+  // Handle gallery
+  const galleryContainer = document.getElementById('profile-gallery-container');
+  const galleryEl = document.getElementById('profile-gallery');
+  if (dog.gallery && dog.gallery.length > 0) {
+    galleryContainer.style.display = 'block';
+    galleryEl.innerHTML = dog.gallery
+      .map(img => `<img class="profile-gallery-image" src="${img}" alt="Dog gallery" onerror="this.style.display='none'" />`)
+      .join('');
+  } else {
+    galleryContainer.style.display = 'none';
+  }
+
+  // Handle videos
+  const videosContainer = document.getElementById('profile-videos-container');
+  const videosEl = document.getElementById('profile-videos');
+  if (dog.videos && dog.videos.length > 0) {
+    videosEl.innerHTML = dog.videos
+      .map(url => `<div><a href="${url}" target="_blank" rel="noopener noreferrer">${escapeHtml(url)}</a></div>`)
+      .join('');
+  } else {
+    videosEl.innerHTML = '<div class="profile-no-videos">Все още няма качени видеа.</div>';
+  }
+
+  // Update like button state
+  const likeBtn = document.getElementById('profile-like-btn');
+  const isLiked = likedDogs.some(d => d.id === dog.id);
+  if (isLiked) {
+    likeBtn.classList.add('active');
+  } else {
+    likeBtn.classList.remove('active');
+  }
+
+  // Show modal
+  modal.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+/**
+ * Close the dog profile modal.
+ */
+function closeProfileModal(event) {
+  if (event && event.target.id !== 'profile-modal') return;
+  const modal = document.getElementById('profile-modal');
+  modal.classList.add('hidden');
+  document.body.style.overflow = '';
+  profileModalDog = null;
+}
+
+/**
+ * Like a dog from the profile modal and update the button state.
+ */
+function likeDogFromProfile() {
+  if (!profileModalDog) return;
+
+  const isAlreadyLiked = likedDogs.some(d => d.id === profileModalDog.id);
+
+  if (!isAlreadyLiked) {
+    likedDogs.push(profileModalDog);
+    saveLikedDogs();
+    showToast('Добавено към харесани кучета!');
+
+    const likeBtn = document.getElementById('profile-like-btn');
+    likeBtn.classList.add('active');
+
+    renderMatches();
+    updateBadge();
+  }
+}
+
+/**
+ * Open chat for the dog from the profile modal.
+ */
+function openChatFromProfile() {
+  if (!profileModalDog) return;
+
+  // Close the profile modal
+  closeProfileModal();
+
+  // Navigate to messages and set active chat
+  activeChatId = profileModalDog.id;
+  navigate('messages');
+  renderMessagesList();
+
+  // Trigger opening the chat window for this dog
+  setTimeout(() => openChat(profileModalDog.id), 100);
 }
 
 /* =========================================================
@@ -871,4 +1036,10 @@ window.handleAddDog = handleAddDog;
 window.backToConversations = backToConversations;
 window.handleSendMessage = handleSendMessage;
 window.openChat = openChat;
- 
+window.openProfileModal = openProfileModal;
+window.closeProfileModal = closeProfileModal;
+window.likeDogFromProfile = likeDogFromProfile;
+window.openChatFromProfile = openChatFromProfile;
+window.dogCardShowProfile = dogCardShowProfile;
+window.likedCardShowProfile = likedCardShowProfile;
+
