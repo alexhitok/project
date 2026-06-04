@@ -233,6 +233,59 @@ function appendDogVideo(dogId, base64DataUrl) {
   localStorage.setItem('dmd_dog_videos', JSON.stringify(store));
 }
 
+/**
+ * Get edited profile data keyed by dog ID.
+ * @returns {Object} map of dogId -> edit data object
+ */
+function getDogProfileEdits() {
+  const raw = localStorage.getItem('dmd_dog_profile_edits');
+  return raw ? JSON.parse(raw) : {};
+}
+
+/**
+ * Save edited profile data for a dog.
+ * @param {string} dogId
+ * @param {Object} data
+ */
+function saveDogProfileEdit(dogId, data) {
+  const store = getDogProfileEdits();
+  store[dogId] = data;
+  localStorage.setItem('dmd_dog_profile_edits', JSON.stringify(store));
+}
+
+/**
+ * Calculate a dog's age string from birth year and optional birth month.
+ * Returns Bulgarian text like "3 г." or "3 г. и 4 мес."
+ * @param {number} birthYear
+ * @param {number|string} [birthMonth] - 1-12 or 'unknown'
+ * @returns {string}
+ */
+function calculateDogAge(birthYear, birthMonth) {
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+
+  if (!birthYear || birthYear > currentYear || birthYear < 1990) return '';
+
+  let ageYears = currentYear - birthYear;
+  let ageMonths = 0;
+
+  if (birthMonth && birthMonth !== 'unknown') {
+    const bm = parseInt(birthMonth, 10);
+    if (!isNaN(bm) && bm >= 1 && bm <= 12) {
+      const totalMonths = (currentYear - birthYear) * 12 + (currentMonth - bm);
+      if (totalMonths < 0) return 'под 1 мес.';
+      ageYears = Math.floor(totalMonths / 12);
+      ageMonths = totalMonths % 12;
+    }
+  }
+
+  if (ageYears === 0 && ageMonths === 0) return 'под 1 мес.';
+  if (ageYears === 0) return ageMonths + ' мес.';
+  if (ageMonths === 0) return ageYears + ' г.';
+  return ageYears + ' г. и ' + ageMonths + ' мес.';
+}
+
 /* =========================================================
    INIT
    ========================================================= */
@@ -818,8 +871,18 @@ function openProfileModal(dog) {
   profileModalDog = dog;
   const modal = document.getElementById('profile-modal');
 
+  // Merge saved profile edits with original dog data
+  const edits = getDogProfileEdits()[dog.id] || {};
+  const merged = { ...dog, ...edits };
+
+  // Hide edit form and show edit button on open
+  const formEl = document.getElementById('profile-edit-form');
+  const editBtn = document.getElementById('profile-edit-btn');
+  if (formEl) formEl.style.display = 'none';
+  if (editBtn) editBtn.style.display = '';
+
   // Set basic info
-  document.getElementById('profile-name').textContent = escapeHtml(dog.name);
+  document.getElementById('profile-name').textContent = escapeHtml(merged.name);
 
   // Set photo
   const photoEl = document.getElementById('profile-photo');
@@ -834,34 +897,58 @@ function openProfileModal(dog) {
     placeholderEl.style.display = 'flex';
   }
 
-  // Set meta information
-  const ageLabel = dog.age === 1 ? '1 година' : `${dog.age} год.`;
-  document.getElementById('profile-age').textContent = ageLabel;
-  document.getElementById('profile-district').textContent = escapeHtml(dog.district);
-  document.getElementById('profile-size').textContent = escapeHtml(dog.size);
+  // Set meta information — use calculated age from birth year if available
+  const ageEl = document.getElementById('profile-age');
+  let ageLabel = '';
+  if (merged.birthYear) {
+    ageLabel = calculateDogAge(parseInt(merged.birthYear, 10), merged.birthMonth);
+  } else if (dog.age) {
+    ageLabel = dog.age === 1 ? '1 година' : `${dog.age} год.`;
+  }
+  if (ageEl) ageEl.textContent = ageLabel;
+
+  document.getElementById('profile-district').textContent = merged.district ? escapeHtml(merged.district) : '';
+  document.getElementById('profile-size').textContent = merged.breed ? escapeHtml(merged.breed) : (dog.size ? escapeHtml(dog.size) : '');
 
   // Set temperament/personality
   const tempEl = document.getElementById('profile-temperament');
-  if (dog.temperament) {
-    tempEl.innerHTML = `<span class="profile-tag">${escapeHtml(dog.temperament)}</span>`;
+  if (merged.temperament) {
+    tempEl.innerHTML = `<span class="profile-tag">${escapeHtml(merged.temperament)}</span>`;
   } else {
     tempEl.innerHTML = '';
   }
 
   // Set description
   const descEl = document.getElementById('profile-description');
-  if (dog.description) {
-    descEl.textContent = escapeHtml(dog.description);
+  if (merged.description) {
+    descEl.textContent = merged.description;
   } else {
     descEl.textContent = '';
   }
 
   // Set goal
   const goalEl = document.getElementById('profile-goal');
-  if (dog.goal) {
-    goalEl.innerHTML = `<strong>Цел:</strong> ${escapeHtml(dog.goal)}`;
+  if (merged.goal) {
+    goalEl.innerHTML = `<strong>Цел:</strong> ${escapeHtml(merged.goal)}`;
   } else {
     goalEl.innerHTML = '';
+  }
+
+  // Set other info if present
+  let otherInfoEl = document.getElementById('profile-other-info');
+  if (merged.otherInfo) {
+    if (!otherInfoEl) {
+      otherInfoEl = document.createElement('div');
+      otherInfoEl.id = 'profile-other-info';
+      otherInfoEl.className = 'profile-other-info';
+      const galleryContainer = document.getElementById('profile-gallery-container');
+      if (galleryContainer && galleryContainer.parentNode) {
+        galleryContainer.parentNode.insertBefore(otherInfoEl, galleryContainer);
+      }
+    }
+    otherInfoEl.innerHTML = '<strong>Друга информация:</strong> ' + escapeHtml(merged.otherInfo);
+  } else if (otherInfoEl) {
+    otherInfoEl.remove();
   }
 
   // Handle gallery
@@ -1053,6 +1140,174 @@ function handleProfileVideoUpload(event) {
     showToast('Грешка при четене на файла. Опитай отново.');
   };
   reader.readAsDataURL(file);
+}
+
+/**
+ * Show the profile edit form, populated with current dog data.
+ */
+function showProfileEditForm() {
+  if (!profileModalDog) return;
+
+  const formEl = document.getElementById('profile-edit-form');
+  const editBtn = document.getElementById('profile-edit-btn');
+  if (!formEl) return;
+
+  // Get merged data: saved edits override original dog data
+  const edits = getDogProfileEdits()[profileModalDog.id] || {};
+  const dog = profileModalDog;
+
+  // Calculate current age to derive birth year if not previously set
+  let birthYear = edits.birthYear || '';
+  let birthMonth = edits.birthMonth || 'unknown';
+
+  // If no birth year stored, try to derive from dog.age
+  if (!birthYear && dog.age) {
+    const currentYear = new Date().getFullYear();
+    birthYear = String(currentYear - dog.age);
+  }
+
+  document.getElementById('edit-name').value = edits.name || dog.name || '';
+  document.getElementById('edit-breed').value = edits.breed || '';
+  document.getElementById('edit-birth-year').value = birthYear;
+  document.getElementById('edit-birth-month').value = birthMonth;
+  document.getElementById('edit-temperament').value = edits.temperament || dog.temperament || '';
+  document.getElementById('edit-district').value = edits.district || dog.district || '';
+  document.getElementById('edit-goal').value = edits.goal || dog.goal || '';
+  document.getElementById('edit-description').value = edits.description || dog.description || '';
+  document.getElementById('edit-other-info').value = edits.otherInfo || '';
+
+  formEl.style.display = 'block';
+  if (editBtn) editBtn.style.display = 'none';
+}
+
+/**
+ * Hide the profile edit form without saving.
+ */
+function cancelProfileEdit() {
+  const formEl = document.getElementById('profile-edit-form');
+  const editBtn = document.getElementById('profile-edit-btn');
+  if (formEl) formEl.style.display = 'none';
+  if (editBtn) editBtn.style.display = '';
+}
+
+/**
+ * Save the profile edit form data, validate, and update the profile modal.
+ */
+function saveProfileEdit() {
+  if (!profileModalDog) return;
+
+  const name = document.getElementById('edit-name').value.trim();
+  const breed = document.getElementById('edit-breed').value.trim();
+  const birthYear = document.getElementById('edit-birth-year').value.trim();
+  const birthMonth = document.getElementById('edit-birth-month').value;
+  const temperament = document.getElementById('edit-temperament').value;
+  const district = document.getElementById('edit-district').value;
+  const goal = document.getElementById('edit-goal').value;
+  const description = document.getElementById('edit-description').value.trim();
+  const otherInfo = document.getElementById('edit-other-info').value.trim();
+
+  // Validation
+  if (!name) {
+    showToast('Моля, въведи име на кучето.');
+    return;
+  }
+
+  if (birthYear) {
+    const yr = parseInt(birthYear, 10);
+    const currentYear = new Date().getFullYear();
+    if (isNaN(yr) || yr < 1990 || yr > currentYear) {
+      showToast('Годината на раждане трябва да е между 1990 и ' + currentYear + '.');
+      return;
+    }
+  }
+
+  // Build the edit data object
+  const editData = {
+    name: name,
+    breed: breed,
+    birthYear: birthYear,
+    birthMonth: birthMonth,
+    temperament: temperament,
+    district: district,
+    goal: goal,
+    description: description,
+    otherInfo: otherInfo,
+  };
+
+  saveDogProfileEdit(profileModalDog.id, editData);
+
+  // Update the displayed profile info in the modal
+  const dog = profileModalDog;
+  const merged = { ...dog, ...editData };
+
+  // Name
+  const nameEl = document.getElementById('profile-name');
+  if (nameEl) nameEl.textContent = merged.name;
+
+  // Age
+  const ageEl = document.getElementById('profile-age');
+  if (ageEl) {
+    const ageStr = merged.birthYear
+      ? calculateDogAge(parseInt(merged.birthYear, 10), merged.birthMonth)
+      : (dog.age ? dog.age + ' г.' : '');
+    ageEl.textContent = ageStr;
+  }
+
+  // Breed / size — show breed if available
+  const sizeEl = document.getElementById('profile-size');
+  if (sizeEl) sizeEl.textContent = merged.breed || dog.size || '';
+
+  // District
+  const districtEl = document.getElementById('profile-district');
+  if (districtEl) districtEl.textContent = merged.district || '';
+
+  // Temperament tags
+  const temperamentEl = document.getElementById('profile-temperament');
+  if (temperamentEl) {
+    const temp = merged.temperament;
+    if (temp) {
+      temperamentEl.innerHTML = '<span class="profile-tag">' + escapeHtml(temp) + '</span>';
+    } else {
+      temperamentEl.innerHTML = '';
+    }
+  }
+
+  // Description
+  const descriptionEl = document.getElementById('profile-description');
+  if (descriptionEl) descriptionEl.textContent = merged.description || '';
+
+  // Goal
+  const goalEl = document.getElementById('profile-goal');
+  if (goalEl) {
+    if (merged.goal) {
+      goalEl.innerHTML = '<span class="profile-goal-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></span> ' + escapeHtml(merged.goal);
+    } else {
+      goalEl.innerHTML = '';
+    }
+  }
+
+  // Other info — show if exists
+  let otherInfoEl = document.getElementById('profile-other-info');
+  if (merged.otherInfo) {
+    if (!otherInfoEl) {
+      otherInfoEl = document.createElement('div');
+      otherInfoEl.id = 'profile-other-info';
+      otherInfoEl.className = 'profile-other-info';
+      // Insert before gallery
+      const galleryContainer = document.getElementById('profile-gallery-container');
+      if (galleryContainer && galleryContainer.parentNode) {
+        galleryContainer.parentNode.insertBefore(otherInfoEl, galleryContainer);
+      }
+    }
+    otherInfoEl.innerHTML = '<strong>Друга информация:</strong> ' + escapeHtml(merged.otherInfo);
+  } else if (otherInfoEl) {
+    otherInfoEl.remove();
+  }
+
+  // Hide form, show edit button
+  cancelProfileEdit();
+
+  showToast('Профилът е обновен успешно!');
 }
 
 /* =========================================================
@@ -1317,4 +1572,7 @@ window.setDiscoverViewMode = setDiscoverViewMode;
 window.likeDogFromList = likeDogFromList;
 window.handleProfilePhotoUpload = handleProfilePhotoUpload;
 window.handleProfileVideoUpload = handleProfileVideoUpload;
+window.showProfileEditForm = showProfileEditForm;
+window.cancelProfileEdit = cancelProfileEdit;
+window.saveProfileEdit = saveProfileEdit;
 
