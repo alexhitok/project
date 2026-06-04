@@ -1589,6 +1589,21 @@ a { color: inherit; text-decoration: none; }
   margin-bottom: 20px;
 }
 
+.profile-other-info {
+  background: var(--cream-100);
+  border-left: 4px solid var(--cream-400);
+  padding: 12px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--neutral-700);
+  margin-bottom: 20px;
+}
+
+.profile-other-info strong {
+  color: var(--brown-700);
+}
+
 .profile-goal strong {
   color: var(--neutral-900);
   font-weight: 600;
@@ -1692,6 +1707,130 @@ a { color: inherit; text-decoration: none; }
   font-style: italic;
   padding: var(--space-2) 0 var(--space-3);
   margin: 0;
+}
+
+/* ===== Profile Name Row + Edit Button ===== */
+.profile-name-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.btn-edit-profile {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  background: var(--cream-100);
+  border: 1.5px solid var(--cream-200);
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--brown-600);
+  cursor: pointer;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.btn-edit-profile:hover {
+  background: var(--cream-200);
+  border-color: var(--accent-400);
+  color: var(--accent-600);
+}
+
+.btn-edit-profile svg {
+  flex-shrink: 0;
+}
+
+/* ===== Profile Edit Form ===== */
+.profile-edit-form {
+  margin-top: 16px;
+}
+
+.profile-edit-form-inner {
+  background: var(--cream-50);
+  border: 1.5px solid var(--cream-200);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.edit-form-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.edit-form-row .edit-form-group {
+  flex: 1;
+}
+
+.edit-form-group {
+  margin-bottom: 12px;
+}
+
+.edit-form-row + .edit-form-group,
+.edit-form-group + .edit-form-group {
+  margin-bottom: 12px;
+}
+
+.edit-form-label {
+  display: block;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--brown-700);
+  margin-bottom: 5px;
+}
+
+.edit-form-input,
+.edit-form-select,
+.edit-form-textarea {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1.5px solid var(--cream-200);
+  border-radius: 8px;
+  font-size: var(--text-sm);
+  font-family: inherit;
+  color: var(--brown-800);
+  background: #fff;
+  transition: border-color 0.15s ease;
+  box-sizing: border-box;
+}
+
+.edit-form-input:focus,
+.edit-form-select:focus,
+.edit-form-textarea:focus {
+  outline: none;
+  border-color: var(--accent-400);
+  box-shadow: 0 0 0 3px rgba(212, 132, 33, 0.12);
+}
+
+.edit-form-textarea {
+  resize: vertical;
+  min-height: 56px;
+  line-height: 1.4;
+}
+
+.edit-form-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--cream-200);
+}
+
+.btn-sm {
+  padding: 8px 20px;
+  font-size: var(--text-sm);
+}
+
+@media (max-width: 480px) {
+  .edit-form-row {
+    flex-direction: column;
+    gap: 0;
+  }
 }
 
 .profile-actions {
